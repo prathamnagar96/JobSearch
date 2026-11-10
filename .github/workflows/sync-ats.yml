@@ -35,9 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          # Install Playwright browsers (needed for scraper fallback)
-          playwright install --with-deps chromium
+          pip install -e .
 
       - name: Run ATS sync
         run: |
