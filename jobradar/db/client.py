@@ -166,14 +166,15 @@ class DatabaseClient:
             return (0, 0)
 
         now = datetime.utcnow()
-        records = [
-            {
+        records_by_fingerprint = {
+            job_data["fingerprint_hash"]: {
                 **job_data,
                 "last_seen_at": now,
                 "status": "active",
             }
             for job_data in jobs
-        ]
+        }
+        records = list(records_by_fingerprint.values())
 
         async with self.session() as session:
             # Query existing fingerprints in one batch to keep accurate added/updated counts
