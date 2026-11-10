@@ -25,6 +25,24 @@ def load_fixture(name: str) -> dict:
 
 
 class TestGreenhouseConnector:
+    def test_parse_job_with_null_location_and_metadata(self):
+        connector = GreenhouseConnector()
+
+        job = connector._to_raw_job(
+            {
+                "title": "Software Engineer",
+                "location": None,
+                "metadata": None,
+                "content": "<p>Build things.</p>",
+                "absolute_url": "https://boards.greenhouse.io/test/jobs/123",
+                "updated_at": "2026-01-01T00:00:00Z",
+            },
+            "Test Company",
+        )
+
+        assert job.title == "Software Engineer"
+        assert job.location is None
+
     @pytest.mark.asyncio
     async def test_fetch_success(self):
         fixture = load_fixture("greenhouse_jobs")

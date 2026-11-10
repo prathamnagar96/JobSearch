@@ -93,10 +93,11 @@ class GreenhouseConnector(Connector):
     def _to_raw_job(self, raw: dict[str, Any], company: str) -> RawJob:
         """Convert Greenhouse job dict to RawJob."""
         # Location: check metadata for detailed location first
-        location = raw.get("location", {}).get("name")
+        location_data = raw.get("location") or {}
+        location = location_data.get("name") if isinstance(location_data, dict) else None
         if not location or location.lower() in ("remote", "hybrid", "on-site", "onsite"):
             # Check metadata for more specific location
-            for meta in raw.get("metadata", []):
+            for meta in raw.get("metadata") or []:
                 if isinstance(meta, dict):
                     name = meta.get("name", "").lower()
                     if "location" in name or "city" in name or "country" in name:

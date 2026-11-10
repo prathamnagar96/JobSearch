@@ -161,46 +161,56 @@ class DatabaseClient:
     async def upsert_jobs_detailed(
         self, jobs: list[dict[str, Any]]
     ) -> tuple[int, int]:
-        """Upsert jobs with accurate added/updated counts."""
+        """Bulk upsert jobs using PostgreSQL ON CONFLICT for high-speed syncs."""
         if not jobs:
             return (0, 0)
 
-        added = 0
-        updated = 0
+        now = datetime.utcnow()
+        records = [
+            {
+                **job_data,
+                "last_seen_at": now,
+                "status": "active",
+            }
+            for job_data in jobs
+        ]
 
         async with self.session() as session:
-            for job_data in jobs:
-                fingerprint = job_data["fingerprint_hash"]
+            # Query existing fingerprints in one batch to keep accurate added/updated counts
+            fingerprints = [r["fingerprint_hash"] for r in records]
+            existing_res = await session.execute(
+                select(Job.fingerprint_hash).where(Job.fingerprint_hash.in_(fingerprints))
+            )
+            existing_set = set(existing_res.scalars().all())
 
-                # Check if exists
-                existing = await session.execute(
-                    select(Job.id).where(Job.fingerprint_hash == fingerprint)
+            # Bulk upsert in batches of 500
+            batch_size = 500
+            for i in range(0, len(records), batch_size):
+                batch = records[i : i + batch_size]
+                stmt = pg_insert(Job).values(batch)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["fingerprint_hash"],
+                    set_={
+                        "title": stmt.excluded.title,
+                        "company": stmt.excluded.company,
+                        "company_url": stmt.excluded.company_url,
+                        "location": stmt.excluded.location,
+                        "tags": stmt.excluded.tags,
+                        "min_salary": stmt.excluded.min_salary,
+                        "max_salary": stmt.excluded.max_salary,
+                        "apply_url": stmt.excluded.apply_url,
+                        "source": stmt.excluded.source,
+                        "posted_at": stmt.excluded.posted_at,
+                        "last_seen_at": stmt.excluded.last_seen_at,
+                        "status": "active",
+                    },
                 )
-                exists = existing.scalar_one_or_none()
-
-                # Prepare update data (always update last_seen_at and status=active)
-                update_data = {
-                    **job_data,
-                    "last_seen_at": datetime.utcnow(),
-                    "status": "active",
-                }
-
-                if exists:
-                    # Update existing
-                    await session.execute(
-                        update(Job)
-                        .where(Job.fingerprint_hash == fingerprint)
-                        .values(**update_data)
-                    )
-                    updated += 1
-                else:
-                    # Insert new
-                    new_job = Job(**update_data)
-                    session.add(new_job)
-                    added += 1
+                await session.execute(stmt)
 
             await session.commit()
 
+        updated = sum(1 for r in records if r["fingerprint_hash"] in existing_set)
+        added = len(records) - updated
         return (added, updated)
 
     async def expire_stale_jobs(

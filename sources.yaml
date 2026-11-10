@@ -277,13 +277,13 @@
 - company: "Qdrant"
   ats: "ashby"
   token: "qdrant"
-  enabled: true
+  enabled: false
   tags: ["ai", "vector-db", "open-source"]
 
 - company: "Chroma"
   ats: "ashby"
   token: "chroma"
-  enabled: true
+  enabled: false
   tags: ["ai", "vector-db", "open-source"]
 
 - company: "LanceDB"
@@ -307,7 +307,7 @@
 - company: "Haystack"
   ats: "ashby"
   token: "haystack"
-  enabled: true
+  enabled: false
   tags: ["ai", "framework", "open-source"]
 
 # Add more companies here as needed
